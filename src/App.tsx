@@ -5,6 +5,7 @@ import Session from './components/Session'
 import Summary from './components/Summary'
 import Settings from './components/Settings'
 import History from './components/History'
+import Scene, { type SceneFocus } from './components/Scene'
 import { createReading, drawCards } from './engine/reading'
 import { addToHistory, countReading, getHistory, getSettings, readingsLeftToday, saveSettings } from './engine/storage'
 import { readingFromLocation } from './engine/share'
@@ -59,6 +60,9 @@ export default function App() {
 
   const toSummary = useCallback((reading: Reading) => setScreen({ kind: 'summary', reading }), [])
 
+  const focus: SceneFocus =
+    screen.kind === 'shuffle' || screen.kind === 'session' ? 'table' : screen.kind === 'summary' ? 'away' : 'welcome'
+
   return (
     <div className="app">
       <header className="topbar">
@@ -84,6 +88,7 @@ export default function App() {
         </nav>
       </header>
 
+      <Scene focus={focus} voice={settings.voice}>
       <main>
         {screen.kind === 'setup' && (
           <Setup left={left} defaultName={settings.name} onStart={start} onHistory={() => setScreen({ kind: 'history' })} />
@@ -105,6 +110,7 @@ export default function App() {
           <History items={getHistory()} onOpen={(r) => setScreen({ kind: 'summary', reading: r, shared: true })} onBack={goHome} />
         )}
       </main>
+      </Scene>
 
       <footer className="footer">
         Tajemnice Magii · wróżby mają charakter rozrywkowy · karty: talia Rider–Waite–Smith (1909, domena publiczna)

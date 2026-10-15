@@ -9,6 +9,12 @@ Darmowa aplikacja do wróżenia z tarota. Wróżbę prowadzi **Aylena**, elfia w
 - Na końcu podsumowanie do pobrania jako **PDF** lub **obraz PNG** oraz **link do udostępnienia**.
 - Jedna darmowa wróżba dziennie. Historia wróżb („Księga wróżb”) zapisuje się w przeglądarce, bez zakładania konta.
 
+## Scena z Ayleną
+
+Cała strona to komnata wróżki: realistyczny obraz Ayleny przy stole (`public/aylena.webp`), ożywiony animacjami. Kadr delikatnie „oddycha” i podąża za kursorem, świeca migocze, a podczas seansu karty wylatują z dłoni Ayleny na zielony obrus. Kliknięcie w Aylenę sprawia, że coś do Ciebie powie.
+
+Żeby podmienić obraz, wgraj nowy plik do `public/` i popraw ułamki w `src/data/aylena.ts` (położenie dłoni, świecy, stołu i twarzy).
+
 ## Jak wróżby się nie powtarzają
 
 1. **Gemini (AI)**: po wpisaniu darmowego klucza w ustawieniach (⚙) każdą wróżbę pisze od nowa Google Gemini. Do zapytania trafiają losowy motyw i ton oraz początki ostatnich wróżb, których AI ma unikać.
@@ -34,6 +40,8 @@ npm run build    # gotowa strona w folderze dist/
 npm test         # testy talii i niepowtarzalności
 ```
 
+Po każdej zmianie na gałęzi `main` GitHub Actions buduje stronę i publikuje ją na gałęzi `gh-pages`, czyli pod adresem https://borysfr-cmyk.github.io/wrozka-uli/ (GitHub Pages z gałęzi `gh-pages`).
+
 Folder `dist/` to zwykła strona statyczna (HTML, CSS, JS i obrazki kart), którą można wrzucić na dowolny hosting, np. GitHub Pages.
 
 ### Ustawienia przy budowaniu (`.env`)
@@ -53,6 +61,8 @@ src/engine/ai.ts        teksty z Google Gemini
 src/engine/reading.ts   losowanie kart i składanie wróżby
 src/engine/share.ts     PDF, obraz i link do udostępnienia
 src/engine/speech.ts    głos Ayleny
+src/data/aylena.ts      położenie dłoni, świecy i stołu na obrazie sceny
+src/components/Scene.tsx scena na całą stronę z Ayleną
 src/components/         ekrany: wybór, tasowanie, seans, podsumowanie, księga, ustawienia
 public/karty/           obrazy kart (WebP)
 ```

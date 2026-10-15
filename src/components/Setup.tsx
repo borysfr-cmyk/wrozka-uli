@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { SPHERES, SPREADS, type Sphere, type SpreadId } from '../data/spreads'
-import Aylena from './Aylena'
 
 export interface SetupChoice {
   sphere: Sphere
@@ -36,14 +35,11 @@ export default function Setup({
 
   return (
     <section className="setup">
-      <div className="setup-hero">
-        <Aylena size={220} />
-        <div className="setup-intro">
-          <h1>Tajemnice Magii</h1>
-          <p className="lead">
-            Jestem Aylena, strażniczka starej talii. Wybierz, o co chcesz zapytać karty, a poprowadzę Cię przez wróżbę.
-          </p>
-        </div>
+      <div className="setup-intro">
+        <h1>Tajemnice Magii</h1>
+        <p className="lead">
+          Jestem Aylena, strażniczka starej talii. Wybierz, o co chcesz zapytać karty, a poprowadzę Cię przez wróżbę.
+        </p>
       </div>
 
       {left <= 0 ? (
