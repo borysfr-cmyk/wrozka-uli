@@ -46,7 +46,8 @@ export function saveSettings(s: Settings) {
 }
 
 // ── Limit wróżb dziennie ──
-const LIMIT = Number(import.meta.env.VITE_DAILY_LIMIT ?? 1)
+// na czas testów bez limitu; przywrócić 1, gdy aplikacja będzie gotowa
+const LIMIT = Number(import.meta.env.VITE_DAILY_LIMIT ?? 0)
 
 function today(): string {
   const d = new Date()

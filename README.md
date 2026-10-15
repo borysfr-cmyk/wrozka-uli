@@ -7,7 +7,7 @@ Darmowa aplikacja do wróżenia z tarota. Wróżbę prowadzi **Aylena**, elfia w
 - Rozkłady: **Krzyż Celtycki** (10 kart, ok. 2–3 minuty) i **Trzy karty** (przeszłość, teraźniejszość, przyszłość).
 - Aylena czyta wróżbę na głos (synteza mowy przeglądarki, można wyłączyć).
 - Na końcu podsumowanie do pobrania jako **PDF** lub **obraz PNG** oraz **link do udostępnienia**.
-- Jedna darmowa wróżba dziennie. Historia wróżb („Księga wróżb”) zapisuje się w przeglądarce, bez zakładania konta.
+- Limit darmowych wróżb dziennie (na czas testów wyłączony). Historia wróżb („Księga wróżb”) zapisuje się w przeglądarce, bez zakładania konta.
 
 ## Scena z Ayleną
 
@@ -48,7 +48,7 @@ Folder `dist/` to zwykła strona statyczna (HTML, CSS, JS i obrazki kart), któr
 
 | Zmienna | Znaczenie | Domyślnie |
 |---|---|---|
-| `VITE_DAILY_LIMIT` | darmowe wróżby dziennie (0 = bez limitu) | `1` |
+| `VITE_DAILY_LIMIT` | darmowe wróżby dziennie (0 = bez limitu) | `0` (na czas testów) |
 | `VITE_GEMINI_API_KEY` | klucz Gemini wbudowany w stronę | brak |
 
 ## Struktura
