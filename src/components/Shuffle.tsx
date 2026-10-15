@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import Aylena from './Aylena'
+import { createPortal } from 'react-dom'
 import { speak } from '../engine/speech'
+import { useScene } from './Scene'
 
 const LINES = [
   'Tasuję wszystkie siedemdziesiąt osiem kart…',
@@ -9,14 +10,22 @@ const LINES = [
 ]
 
 export default function Shuffle({ ready, voice, onDone }: { ready: boolean; voice: boolean; onDone: () => void }) {
+  const scene = useScene()
   const [line, setLine] = useState(0)
   const [cut, setCut] = useState(false)
 
   useEffect(() => {
-    if (voice) speak(LINES.join(' '))
+    scene.setSpeaking(true)
+    if (voice) speak(LINES.join(' ')).then(() => scene.setSpeaking(false))
+    else setTimeout(() => scene.setSpeaking(false), 6000)
     const t = setInterval(() => setLine((l) => Math.min(l + 1, LINES.length - 1)), 2600)
     return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voice])
+
+  useEffect(() => {
+    scene.say(cut && !ready ? 'Wczytuję się w karty, które wybrał los…' : LINES[line])
+  }, [cut, ready, line, scene])
 
   useEffect(() => {
     if (cut && ready) {
@@ -27,13 +36,16 @@ export default function Shuffle({ ready, voice, onDone }: { ready: boolean; voic
 
   return (
     <section className="shuffle">
-      <Aylena size={180} speaking />
-      <p className="bubble">{cut && !ready ? 'Wczytuję się w karty, które wybrał los…' : LINES[line]}</p>
-      <div className={`deck ${cut ? 'is-cut' : ''}`} aria-hidden="true">
-        {Array.from({ length: 7 }, (_, i) => (
-          <span key={i} className="deck-card" style={{ ['--i' as string]: i }} />
-        ))}
-      </div>
+      {(() => {
+        const deck = (
+          <div className={`deck ${cut ? 'is-cut' : ''}`} aria-hidden="true">
+            {Array.from({ length: 7 }, (_, i) => (
+              <span key={i} className="deck-card" style={{ ['--i' as string]: i }} />
+            ))}
+          </div>
+        )
+        return scene.tableSlot ? createPortal(deck, scene.tableSlot) : deck
+      })()}
       <button className="btn btn-primary btn-big" disabled={cut || line < LINES.length - 1} onClick={() => setCut(true)}>
         {cut ? 'Talia przełożona' : 'Przełóż talię'}
       </button>

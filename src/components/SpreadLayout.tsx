@@ -21,12 +21,14 @@ export default function SpreadLayout({
   spread,
   cards,
   revealed,
+  dealt,
   active,
   onSelect,
 }: {
   spread: SpreadId
   cards: Card[]
   revealed: boolean[]
+  dealt?: boolean[]
   active: number
   onSelect?: (i: number) => void
 }) {
@@ -35,7 +37,7 @@ export default function SpreadLayout({
     return (
       <div className="layout layout-three">
         {cards.map((k, i) => (
-          <div key={k.id} className="slot">
+          <div key={k.id} className={`slot ${!dealt || dealt[i] ? 'is-dealt' : 'is-waiting'}`} data-slot={i}>
             <TarotCard card={k} revealed={revealed[i]} active={active === i} label={positions[i].name} onClick={onSelect && (() => onSelect(i))} />
             <span className="slot-label">{positions[i].name}</span>
           </div>
@@ -48,7 +50,8 @@ export default function SpreadLayout({
       {cards.map((k, i) => (
         <div
           key={k.id}
-          className={`slot-abs ${i === 1 ? 'slot-cross' : ''}`}
+          className={`slot-abs ${i === 1 ? 'slot-cross' : ''} ${!dealt || dealt[i] ? 'is-dealt' : 'is-waiting'}`}
+          data-slot={i}
           style={{ left: `calc(var(--cw) * ${CELTIC[i].x})`, top: `calc(var(--ch) * ${CELTIC[i].y})` }}
         >
           <TarotCard card={k} revealed={revealed[i]} active={active === i} crossed={i === 1} label={positions[i].name} onClick={onSelect && (() => onSelect(i))} />
