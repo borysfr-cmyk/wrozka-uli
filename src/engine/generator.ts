@@ -4,7 +4,9 @@
 
 import type { Card, Suit } from '../data/cards'
 import type { Position, Sphere, SpreadId } from '../data/spreads'
-import { SPHERES } from '../data/spreads'
+import { SPHERES, SPREADS } from '../data/spreads'
+import { moonPhase } from './moon'
+import type { Verdict } from './types'
 import { randInt, shuffle, hash } from './random'
 import { getRecent, saveRecent, getHashes } from './storage'
 
@@ -52,14 +54,15 @@ class Picker {
 
 // ── Pule zdań ──
 
-type Opener = (p: string, m: string, c: string, i: number) => string
+type Opener = (p: string, m: string, c: string, i: number, n: number) => string
 const OPENERS: Opener[] = [
   (p, m, c) => `„${p}”, czyli ${m}. Tu spoczywa karta ${c}.`,
   (p, _m, c) => `Odkrywam kartę ${c} na pozycji „${p}”.`,
   (p, _m, c) => `Pozycja „${p}”. Karty odsłaniają: ${c}.`,
   (p, _m, c) => `${c} wychodzi z talii jako „${p}”.`,
   (p, _m, c) => `Tam, gdzie leży „${p}”, widzę kartę ${c}.`,
-  (p, _m, c, i) => (i > 0 ? `Kolejna karta, ${c}, zajmuje miejsce „${p}”.` : `Pierwsza karta, ${c}, zajmuje miejsce „${p}”.`),
+  (p, _m, c, i, n) =>
+    n === 1 ? `Jedna karta, ${c}, zajmuje miejsce „${p}”.` : i > 0 ? `Kolejna karta, ${c}, zajmuje miejsce „${p}”.` : `Pierwsza karta, ${c}, zajmuje miejsce „${p}”.`,
   (p, _m, c) => `Moja dłoń zatrzymuje się nad kartą ${c}. To „${p}”.`,
   (p, _m, c) => `„${p}” mówi dziś głosem karty ${c}.`,
   (p, _m, c) => `Świeca migocze, gdy odsłaniam kartę ${c}. Jej miejsce to „${p}”.`,
@@ -113,7 +116,7 @@ const IMAGERY: Record<'1' | '0' | '-1', string[]> = {
   '0': [
     'Mgła nad rzeką powoli opada, ale jeszcze nie wszystko widać.',
     'To jak ścieżka przez stary las: trzeba iść uważnie.',
-    'Kamienie runiczne milczą, każąc Ci samemu znaleźć odpowiedź.',
+    'Kamienie runiczne milczą, każąc Ci samodzielnie znaleźć odpowiedź.',
     'Wiatr się zmienia; zwróć uwagę, skąd wieje.',
     'Księżyc jest w połowie drogi, a wraz z nim Twoja sprawa.',
     'Stary most trzyma mocno, ale wymaga uważnego kroku.',
@@ -131,6 +134,13 @@ const IMAGERY: Record<'1' | '0' | '-1', string[]> = {
     'Lód na jeziorze jest cienki; idź ostrożnie, a przejdziesz.',
   ],
 }
+
+const MOON_LINES: ((name: string, meaning: string) => string)[] = [
+  (n, m) => `Na niebie świeci dziś ${n}, ${m}.`,
+  (n, m) => `Spójrz w okno: ${n}. To ${m}.`,
+  (n, m) => `Księżyc nam sprzyja. Trwa ${n}, ${m}.`,
+  (n, m) => `Dziś nad wieżą wisi ${n}, a to ${m}.`,
+]
 
 const ADVICE_PREFIX = ['Moja rada: ', 'Zapamiętaj: ', 'Weź to ze sobą: ', 'Szepnę Ci jeszcze: ', 'Niech prowadzą Cię te słowa: ']
 
@@ -160,11 +170,11 @@ const MESSAGE_OPENERS = [
 
 // ── Składanie tekstu jednej karty ──
 
-function cardText(pk: Picker, card: Card, pos: Position, i: number, sphere: Sphere): string {
+function cardText(pk: Picker, card: Card, pos: Position, i: number, n: number, sphere: Sphere): string {
   const topic = SPHERES[sphere].topic
   const parts: string[] = []
 
-  parts.push(pk.from('opener', OPENERS)(pos.name, pos.meaning, card.name, i))
+  parts.push(pk.from('opener', OPENERS)(pos.name, pos.meaning, card.name, i, n))
 
   const meanings = shuffle(card[sphere])
   const prefix = pk.from('mprefix', MEANING_PREFIX(topic))
@@ -198,8 +208,73 @@ function cardText(pk: Picker, card: Card, pos: Position, i: number, sphere: Sphe
 
 // ── Podsumowanie ──
 
+const VERDICT_LINES: Record<Verdict, string[]> = {
+  tak: [
+    'Odpowiedź kart brzmi: tak. Energia sprzyja Twojej sprawie.',
+    'Karty mówią „tak”, i to wyraźnie.',
+    'Tak. Karta świeci jasno nad Twoim pytaniem.',
+    'Odpowiedź jest pomyślna: tak, droga jest otwarta.',
+  ],
+  nie: [
+    'Odpowiedź kart brzmi: nie, przynajmniej nie teraz.',
+    'Karty mówią „nie”. To jednak przestroga, a nie wyrok.',
+    'Nie. Ta karta prosi, by poczekać albo wybrać inną drogę.',
+    'Odpowiedź jest powściągliwa: raczej nie, dopóki coś się nie zmieni.',
+  ],
+  moze: [
+    'Odpowiedź kart brzmi: być może. Wiele zależy od Twojego następnego kroku.',
+    'Karty nie mówią ani „tak”, ani „nie”. Sprawa jest jeszcze otwarta.',
+    'Może. Los zostawia Ci tu wolną rękę.',
+    'Odpowiedź jest niejednoznaczna: to Twoja decyzja przechyli szalę.',
+  ],
+}
+
+const ONE_CARD_CLOSE: Record<'1' | '0' | '-1', string[]> = {
+  '1': [
+    'To jasny znak: drzwi są uchylone, wystarczy w nie wejść.',
+    'Energia tej karty niesie Cię naprzód; nie przeszkadzaj jej zbędnym lękiem.',
+    'Pozwól tej dobrej wróżbie spełnić się w swoim czasie.',
+  ],
+  '0': [
+    'Ta karta nie przesądza; daje Ci narzędzia, a wybór zostawia Tobie.',
+    'Patrz uważnie na znaki wokół siebie; odpowiedź dojrzewa.',
+    'To czas obserwacji, zanim zrobisz kolejny krok.',
+  ],
+  '-1': [
+    'To przestroga, nie wyrok: masz wpływ na to, jak potoczy się ta sprawa.',
+    'Gdy nazwiesz ten cień, straci on połowę swojej mocy.',
+    'Zwolnij i zadbaj o siebie; po burzy powietrze zawsze jest czystsze.',
+  ],
+}
+
+const MESSAGE_GENERIC = [
+  'ufaj sobie, bo wiesz więcej, niż mówisz na głos.',
+  'mały krok zrobiony dziś znaczy więcej niż wielki plan na jutro.',
+  'to, czemu poświęcasz uwagę, rośnie.',
+  'każdy dzień ma swój znak; patrz uważnie.',
+  'serce i rozum mogą iść tą samą drogą.',
+  'odpoczynek też jest częścią drogi.',
+  'dobre rzeczy przychodzą do tych, którzy są na nie gotowi.',
+  'Twoja intuicja jest dziś szczególnie mocna.',
+]
+
+const DAY_LINES = [
+  'Niech ta karta towarzyszy Ci od rana do wieczora.',
+  'Wróć do niej myślami wieczorem i zobacz, gdzie się objawiła.',
+  'To energia, która dziś unosi się wokół Ciebie.',
+  'Ten dzień ma swój kolor, a ta karta go nazywa.',
+]
+
+/** Odpowiedź w rozkładzie „Tak czy nie”: jasna karta to tak, wymagająca to nie */
+export function verdictOf(card: Card): Verdict {
+  return card.tone === 1 ? 'tak' : card.tone === -1 ? 'nie' : 'moze'
+}
+
 function summaryText(pk: Picker, cards: Card[], positions: Position[], sphere: Sphere, spread: SpreadId) {
   const s: string[] = []
+  const def = SPREADS[spread]
+  if (spread === 'yesno') s.push(pk.from(`sum-v-${verdictOf(cards[0])}`, VERDICT_LINES[verdictOf(cards[0])]))
+  if (spread === 'day') s.push(pk.from('sum-day', DAY_LINES))
   const majors = cards.filter((k) => k.suit === 'major').length
   const bright = cards.filter((k) => k.tone === 1).length
   const dark = cards.filter((k) => k.tone === -1).length
@@ -210,7 +285,19 @@ function summaryText(pk: Picker, cards: Card[], positions: Position[], sphere: S
     .sort((a, b) => b[1] - a[1])[0]
 
   // Charakter rozkładu
-  if (majors >= Math.ceil(cards.length * 0.4)) {
+  if (cards.length === 1) {
+    // jedna karta: zamiast bilansu mówimy o jej naturze
+    const k = cards[0]
+    s.push(k.suit === 'major'
+      ? pk.from('sum-one-major', [
+        'To karta z Arkanów Wielkich, więc jej przesłanie sięga głębiej niż codzienność.',
+        'Wyszła karta z Arkanów Wielkich. Los mówi tu donośnym głosem.',
+      ])
+      : pk.from('sum-one-suit', [
+        `To karta ${SUIT_GEN[k.suit as Exclude<Suit, 'major'>]}; jej żywioł to ${SUIT_ELEMENT[k.suit as Exclude<Suit, 'major'>]}.`,
+        `Żywioł tej karty to ${SUIT_ELEMENT[k.suit as Exclude<Suit, 'major'>]}. Tam szukaj odpowiedzi.`,
+      ]))
+  } else if (majors >= Math.ceil(cards.length * 0.4)) {
     s.push(pk.from('sum-major', [
       `Aż ${majors} z ${cards.length} kart pochodzi z Arkanów Wielkich. To znak, że ta sprawa jest ważnym etapem Twojego losu, a nie przypadkiem.`,
       `W rozkładzie pojawiło się ${majors} Arkanów Wielkich. Przeznaczenie wyraźnie macza w tym palce.`,
@@ -226,7 +313,9 @@ function summaryText(pk: Picker, cards: Card[], positions: Position[], sphere: S
   }
 
   // Bilans światła i cienia
-  if (bright > dark * 2) {
+  if (cards.length === 1) {
+    /* przy jednej karcie bilans nic nie dodaje */
+  } else if (bright > dark * 2) {
     s.push(pk.from('sum-bright', [
       'Światło wyraźnie przeważa nad cieniem. Energia sprzyja Twoim zamiarom.',
       'Większość kart świeci jasno. Masz wiatr w żaglach.',
@@ -251,22 +340,33 @@ function summaryText(pk: Picker, cards: Card[], positions: Position[], sphere: S
   const last = cards[cards.length - 1]
   const kf = shuffle(first.keywords)[0]
   const kl = shuffle(last.keywords)[0]
-  s.push(pk.from('sum-arc', [
+  if (spread === 'crossroads') {
+    const [a, b] = [cards[2], cards[4]]
+    s.push(`Pierwsza droga prowadzi ku karcie ${a.name}, druga ku karcie ${b.name}.`)
+    s.push(
+      a.tone > b.tone
+        ? pk.from('sum-cr-a', ['Jaśniejsze światło pada na pierwszą drogę.', 'Karty wyraźniej sprzyjają pierwszej możliwości.'])
+        : b.tone > a.tone
+          ? pk.from('sum-cr-b', ['Jaśniejsze światło pada na drugą drogę.', 'Karty wyraźniej sprzyjają drugiej możliwości.'])
+          : pk.from('sum-cr-eq', ['Obie drogi niosą podobną energię; wybierz tę, przy której serce bije spokojniej.', 'Żadna droga nie jest wyraźnie lepsza; zdecydują Twoje wartości.']),
+    )
+  } else if (cards.length > 1) s.push(pk.from('sum-arc', [
     `Twoja opowieść zaczyna się od karty ${first.name} (${kf}) i prowadzi do karty ${last.name} (${kl}).`,
     `Droga wiedzie od karty ${first.name} ku karcie ${last.name}, czyli od tematu: ${kf}, do tematu: ${kl}.`,
     `Początek to ${first.name}, a rozwiązanie to ${last.name}. Między nimi rozpięta jest cała Twoja historia.`,
   ]))
 
-  // Rozwiązanie w sferze
-  s.push(shuffle(last[sphere])[0])
+  // Rozwiązanie w sferze (przy jednej karcie jej znaczenie padło już w tekście karty)
+  if (cards.length > 1) s.push(shuffle(last[sphere])[0])
+  else s.push(pk.from(`sum-one-close${last.tone}`, ONE_CARD_CLOSE[String(last.tone) as '1' | '0' | '-1']))
 
-  // Pozycja „Ty” w Krzyżu Celtyckim
-  if (spread === 'celtic') {
-    const you = cards[6]
-    s.push(`Pozycja „${positions[6].name}” pokazuje kartę ${you.name}: ${lower(you.advice)}`)
+  // Pozycja „Ty”, jeśli rozkład ją ma
+  if (def.you !== undefined) {
+    const you = cards[def.you]
+    s.push(`Pozycja „${positions[def.you].name}” pokazuje kartę ${you.name}: ${lower(you.advice)}`)
   }
 
-  const advice = `${last.advice} ${spread === 'celtic' ? cards[4].advice : cards[1].advice}`
+  const advice = Array.from(new Set(def.adviceFrom.map((i) => cards[i].advice))).join(' ')
   return { summary: s.join(' '), advice }
 }
 
@@ -279,6 +379,7 @@ export interface Generated {
   advice: string
   message: string
   talisman: string
+  verdict?: Verdict
 }
 
 export function generateReading(
@@ -295,23 +396,34 @@ export function generateReading(
   const texts = cards.map((card, i) => {
     let t = ''
     for (let attempt = 0; attempt < 12; attempt++) {
-      t = cardText(pk, card, positions[i], i, sphere)
+      t = cardText(pk, card, positions[i], i, cards.length, sphere)
       if (!seen.has(hash(t))) break
     }
     return t
   })
 
-  const greeting = pk.from('greet', GREETINGS)(name ? `, ${name}` : '', topic)
+  const moon = moonPhase()
+  const greeting = `${pk.from('greet', GREETINGS)(name ? `, ${name}` : '', topic)} ${pk.from('moon', MOON_LINES)(moon.name, moon.meaning)}`
   let sum = summaryText(pk, cards, positions, sphere, spread)
   for (let attempt = 0; attempt < 6 && seen.has(hash(sum.summary)); attempt++) {
     sum = summaryText(pk, cards, positions, sphere, spread)
   }
-  const msgCard = cards[randInt(cards.length)]
-  const message = `${pk.from('msg', MESSAGE_OPENERS)} ${lower(msgCard.advice)}`
+  // przesłanie nie powtarza rady z podsumowania
+  const msgPool = cards.map((k) => k.advice).filter((a) => !sum.advice.includes(a))
+  const msgText = msgPool.length ? msgPool[randInt(msgPool.length)] : pk.from('msg-generic', MESSAGE_GENERIC)
+  const message = `${pk.from('msg', MESSAGE_OPENERS)} ${lower(msgText)}`
   const talisman = pk.from('talisman', TALISMANS)
   pk.save()
 
-  return { greeting, texts, summary: sum.summary, advice: sum.advice, message, talisman }
+  return {
+    greeting,
+    texts,
+    summary: sum.summary,
+    advice: sum.advice,
+    message,
+    talisman,
+    verdict: spread === 'yesno' ? verdictOf(cards[0]) : undefined,
+  }
 }
 
 export { TALISMANS }

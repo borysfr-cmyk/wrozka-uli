@@ -4,6 +4,8 @@ import { cardOf } from '../engine/reading'
 import { SPHERES, SPREADS } from '../data/spreads'
 import { copyLink, downloadImage, downloadPdf, shareReading } from '../engine/share'
 import { speak, stopSpeaking } from '../engine/speech'
+import CardModal from './CardModal'
+import { VERDICT_LABEL } from './Session'
 
 export default function Summary({
   reading,
@@ -22,6 +24,7 @@ export default function Summary({
   const [busy, setBusy] = useState<string | null>(null)
   const [note, setNote] = useState('')
   const positions = SPREADS[reading.spread].positions
+  const [zoom, setZoom] = useState<number | null>(null)
   const date = new Date(reading.createdAt).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })
 
   useEffect(() => {
@@ -54,9 +57,17 @@ export default function Summary({
           <p className="sheet-meta">
             {SPREADS[reading.spread].name} · {SPHERES[reading.sphere].name} · {date}
             {reading.name ? ` · dla: ${reading.name}` : ''}
+            {reading.moon ? ` · ${reading.moon}` : ''}
           </p>
           {reading.question && <p className="sheet-question">„{reading.question}”</p>}
         </header>
+
+        {reading.verdict && (
+          <p className={`verdict verdict-${reading.verdict} sheet-verdict`}>
+            <span className="verdict-label">Odpowiedź kart</span>
+            {VERDICT_LABEL[reading.verdict]}
+          </p>
+        )}
 
         <div className="sheet-block sheet-summary">
           <h3>Podsumowanie</h3>
@@ -74,7 +85,9 @@ export default function Summary({
             const k = cardOf(rc.cardId)
             return (
               <li key={rc.cardId}>
-                <img src={k.image} alt="" />
+                <button className="sheet-card-btn" onClick={() => setZoom(i)} aria-label={`Znaczenie karty ${k.name}`}>
+                  <img src={k.image} alt="" />
+                </button>
                 <div>
                   <span className="pos">{i + 1}. {positions[i].name}</span>
                   <strong>{k.name}</strong>
@@ -103,6 +116,15 @@ export default function Summary({
         </button>
       </div>
       {note && <p className="note" role="status">{note}</p>}
+
+      {zoom !== null && (
+        <CardModal
+          card={cardOf(reading.cards[zoom].cardId)}
+          sphere={reading.sphere}
+          context={{ position: `${zoom + 1}. ${positions[zoom].name}`, text: reading.cards[zoom].text }}
+          onClose={() => setZoom(null)}
+        />
+      )}
 
       <div className="summary-actions summary-actions-secondary">
         <button className="btn btn-ghost" onClick={onNew}>{shared ? 'Poproś Aylenę o własną wróżbę' : 'Wróć do stołu'}</button>

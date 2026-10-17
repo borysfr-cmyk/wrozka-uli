@@ -5,7 +5,8 @@ import type { Card } from '../data/cards'
 import type { Position, Sphere, SpreadId } from '../data/spreads'
 import { SPHERES, SPREADS } from '../data/spreads'
 import { pick } from './random'
-import { TALISMANS, type Generated } from './generator'
+import { TALISMANS, verdictOf, type Generated } from './generator'
+import { moonPhase } from './moon'
 import { getHistory } from './storage'
 
 const MOTIFS = [
@@ -36,6 +37,17 @@ export async function generateWithGemini(
     .map((t) => t.split(' ').slice(0, 5).join(' '))
     .slice(0, 25)
 
+  const moon = moonPhase()
+  const verdict = spread === 'yesno' ? verdictOf(cards[0]) : undefined
+  const extra = [
+    `Faza Księżyca: ${moon.name} (${moon.meaning}); wspomnij o niej krótko w powitaniu.`,
+    verdict && `To rozkład „Tak czy nie”. Odpowiedź kart brzmi: ${verdict === 'moze' ? 'być może' : verdict.toUpperCase()}. Podsumowanie musi zacząć się od tej odpowiedzi i ją uzasadnić.`,
+    spread === 'day' && 'To karta dnia: mów o energii na dzisiaj, o tym, na co zwrócić uwagę od rana do wieczora.',
+    spread === 'crossroads' && 'To rozkład „Rozdroże”: porównaj obie drogi i powiedz, której karty sprzyjają bardziej.',
+  ]
+    .filter(Boolean)
+    .join('\n')
+
   const layout = cards
     .map((k, i) => `${i + 1}. Pozycja „${positions[i].name}” (${positions[i].meaning}): ${k.name}. Słowa-klucze: ${k.keywords.join(', ')}. Znaczenie (${SPHERES[sphere].short}): ${k[sphere].join(' ')}`)
     .join('\n')
@@ -46,14 +58,15 @@ Wróżba: ${SPREADS[spread].name}, sfera: ${SPHERES[sphere].name}.
 ${name ? `Imię pytającego: ${name}.` : ''}
 ${question ? `Pytanie: „${question}”.` : 'Pytający nie zadał konkretnego pytania.'}
 Motyw przewodni obrazowania: ${motif}. Ton: ${tone}.
+${extra}
 
 Karty (bez odwróceń):
 ${layout}
 
 Napisz wróżbę zgodną z klasyczną symboliką tych kart w podanej sferze. Wymagania:
 - "greeting": 1–2 zdania powitania.
-- "cards": tablica ${cards.length} tekstów, po jednym na kartę w tej samej kolejności, każdy 2–4 zdania (40–70 słów). Wymień nazwę karty i pozycję, powiąż je z pytaniem.
-- "summary": podsumowanie całego rozkładu, 4–6 zdań, łączące karty w jedną opowieść.
+- "cards": tablica ${cards.length} ${cards.length === 1 ? 'tekstu' : 'tekstów'}, po jednym na kartę w tej samej kolejności, każdy ${cards.length === 1 ? '4–6 zdań (70–110 słów)' : '2–4 zdania (40–70 słów)'}. Wymień nazwę karty i pozycję, powiąż je z pytaniem.
+- "summary": podsumowanie ${cards.length === 1 ? 'wróżby, 3–4 zdania' : 'całego rozkładu, 4–6 zdań, łączące karty w jedną opowieść'}.
 - "advice": konkretna rada, 1–2 zdania.
 - "message": krótkie przesłanie na najbliższe dni, 1 zdanie.
 - "talisman": jeden symboliczny przedmiot-talizman (2–4 słowa).
@@ -98,6 +111,7 @@ Odpowiedz wyłącznie obiektem JSON.`
     advice: String(out.advice),
     message: String(out.message),
     talisman: String(out.talisman || pick(TALISMANS)),
+    verdict,
   }
 }
 

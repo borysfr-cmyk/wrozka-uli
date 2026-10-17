@@ -29,6 +29,16 @@ function write(key: string, value: unknown) {
 // ── Ustawienia ──
 export interface Settings {
   voice: boolean
+  /** nazwa wybranego głosu syntezy mowy ('' = najlepszy polski) */
+  voiceName: string
+  /** tempo mowy, 0,7–1,3 */
+  voiceRate: number
+  /** efekty dźwiękowe kart */
+  effects: boolean
+  /** szum ognia i muzyka komnaty */
+  ambient: boolean
+  /** głośność dźwięków, 0–1 */
+  volume: number
   geminiKey: string
   geminiModel: string
   name: string
@@ -38,7 +48,18 @@ export const DEFAULT_MODEL = 'gemini-2.5-flash'
 
 export function getSettings(): Settings {
   const envKey = (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) ?? ''
-  return { voice: true, geminiKey: envKey, geminiModel: DEFAULT_MODEL, name: '', ...read<Partial<Settings>>(K.settings, {}) }
+  return {
+    voice: true,
+    voiceName: '',
+    voiceRate: 0.95,
+    effects: true,
+    ambient: true,
+    volume: 0.6,
+    geminiKey: envKey,
+    geminiModel: DEFAULT_MODEL,
+    name: '',
+    ...read<Partial<Settings>>(K.settings, {}),
+  }
 }
 
 export function saveSettings(s: Settings) {
@@ -71,7 +92,15 @@ export function getHistory(): Reading[] {
 }
 
 export function addToHistory(r: Reading) {
-  write(K.history, [r, ...getHistory()].slice(0, 30))
+  write(K.history, [r, ...getHistory()].slice(0, 60))
+}
+
+export function removeFromHistory(id: string) {
+  write(K.history, getHistory().filter((r) => r.id !== id))
+}
+
+export function clearHistory() {
+  write(K.history, [])
 }
 
 // ── Pamięć niepowtarzalności ──

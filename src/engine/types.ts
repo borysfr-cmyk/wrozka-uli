@@ -1,5 +1,8 @@
 import type { Sphere, SpreadId } from '../data/spreads'
 
+/** odpowiedź w rozkładzie „Tak czy nie” */
+export type Verdict = 'tak' | 'nie' | 'moze'
+
 export interface ReadingCard {
   cardId: string
   text: string
@@ -19,4 +22,7 @@ export interface Reading {
   message: string
   talisman: string
   source: 'ai' | 'ksiega'
+  verdict?: Verdict
+  /** faza Księżyca w chwili wróżby */
+  moon?: string
 }
