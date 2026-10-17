@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { speak } from '../engine/speech'
 import { useScene } from './Scene'
+import { sfxShuffle } from '../engine/audio'
 
 const LINES = [
   'Tasuję wszystkie siedemdziesiąt osiem kart…',
@@ -26,6 +27,14 @@ export default function Shuffle({ ready, voice, onDone }: { ready: boolean; voic
   useEffect(() => {
     scene.say(cut && !ready ? 'Wczytuję się w karty, które wybrał los…' : LINES[line])
   }, [cut, ready, line, scene])
+
+  // szelest kart w rytm animacji tasowania
+  useEffect(() => {
+    if (cut) return
+    sfxShuffle()
+    const t = setInterval(sfxShuffle, 1600)
+    return () => clearInterval(t)
+  }, [cut])
 
   useEffect(() => {
     if (cut && ready) {

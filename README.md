@@ -3,11 +3,16 @@
 Darmowa aplikacja do wróżenia z tarota. Wróżbę prowadzi **Aylena**, elfia wróżka w klimacie wysokiej fantasy.
 
 - Pełna talia 78 kart Rider–Waite–Smith (1909, domena publiczna).
-- Dwie sfery: **miłość i związki** oraz **finanse i biznes**.
-- Rozkłady: **Krzyż Celtycki** (10 kart, ok. 2–3 minuty) i **Trzy karty** (przeszłość, teraźniejszość, przyszłość).
-- Aylena czyta wróżbę na głos (synteza mowy przeglądarki, można wyłączyć).
-- Na końcu podsumowanie do pobrania jako **PDF** lub **obraz PNG** oraz **link do udostępnienia**.
-- Limit darmowych wróżb dziennie (na czas testów wyłączony). Historia wróżb („Księga wróżb”) zapisuje się w przeglądarce, bez zakładania konta.
+- Trzy sfery: **miłość i związki**, **finanse i biznes** oraz **droga życia** (rozwój, codzienność, decyzje).
+- Sześć rozkładów: **Krzyż Celtycki** (10 kart), **Podkowa** (5 kart), **Rozdroże** (5 kart, wybór między dwiema drogami), **Trzy karty**, **Tak czy nie** (1 karta z wyraźną odpowiedzią) i **Karta dnia**.
+- **Księga kart**: wszystkie 78 kart z opisami w trzech sferach, filtrem kolorów i wyszukiwarką. Każdą kartę z rozkładu i podsumowania można otworzyć w powiększeniu.
+- **Faza Księżyca** liczona na bieżąco: widać ją na ekranie startowym, a Aylena wspomina o niej w powitaniu.
+- Aylena czyta wróżbę na głos (synteza mowy przeglądarki; w ustawieniach wybór głosu i tempa).
+- **Dźwięki komnaty** tworzone w przeglądarce, bez plików nagrań: muzyka i trzask ognia w tle, szelest kart, dzwonki. Złote iskry przy odkryciu każdej karty.
+- Na końcu podsumowanie do pobrania jako **PDF** lub **obraz PNG** oraz **link do udostępnienia** (z ładnym podglądem w Messengerze, na Facebooku i WhatsAppie).
+- Stronę można **zainstalować na telefonie** jak aplikację; po pierwszej wizycie działa też bez internetu.
+- Limit darmowych wróżb dziennie (na czas testów wyłączony). Historia wróżb („Księga wróżb”) zapisuje się w przeglądarce, ze statystyką kart, które wracają najczęściej. Bez zakładania konta.
+- Skróty w trakcie wróżby: spacja wstrzymuje, strzałka w prawo przechodzi dalej.
 
 ## Scena z Ayleną
 
@@ -55,15 +60,19 @@ Folder `dist/` to zwykła strona statyczna (HTML, CSS, JS i obrazki kart), któr
 
 ```
 src/data/cards.ts       78 kart: nazwy, słowa-klucze, znaczenia w miłości i finansach, rada
-src/data/spreads.ts     rozkłady i pozycje
+src/data/cards-life.ts  znaczenia kart w sferze „Droga życia”
+src/data/spreads.ts     rozkłady, pozycje i ich miejsca na stole
 src/engine/generator.ts Księga Ayleny: generator tekstów z pamięcią niepowtarzalności
 src/engine/ai.ts        teksty z Google Gemini
 src/engine/reading.ts   losowanie kart i składanie wróżby
 src/engine/share.ts     PDF, obraz i link do udostępnienia
 src/engine/speech.ts    głos Ayleny
+src/engine/audio.ts     dźwięki komnaty (Web Audio)
+src/engine/moon.ts      faza Księżyca
+public/sw.js            praca bez internetu i instalacja na telefonie
 src/data/aylena.ts      położenie dłoni, świecy i stołu na obrazie sceny
 src/components/Scene.tsx scena na całą stronę z Ayleną
-src/components/         ekrany: wybór, tasowanie, seans, podsumowanie, księga, ustawienia
+src/components/         ekrany: wybór, tasowanie, seans, podsumowanie, Księga kart, Księga wróżb, ustawienia
 public/karty/           obrazy kart (WebP)
 ```
 

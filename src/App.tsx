@@ -1,15 +1,18 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Setup, { type SetupChoice } from './components/Setup'
 import Shuffle from './components/Shuffle'
 import Session from './components/Session'
 import Summary from './components/Summary'
 import Settings from './components/Settings'
 import History from './components/History'
+import Lexicon from './components/Lexicon'
 import Scene, { type SceneFocus } from './components/Scene'
+import Icon from './components/Icon'
 import { createReading, drawCards } from './engine/reading'
-import { addToHistory, countReading, getHistory, getSettings, readingsLeftToday, saveSettings } from './engine/storage'
+import { addToHistory, countReading, getSettings, readingsLeftToday, saveSettings, type Settings as SettingsT } from './engine/storage'
 import { readingFromLocation } from './engine/share'
-import { stopSpeaking } from './engine/speech'
+import { setVoiceOptions, stopSpeaking } from './engine/speech'
+import { configureAudio, unlockAudio } from './engine/audio'
 import type { Reading } from './engine/types'
 
 type Screen =
@@ -18,6 +21,7 @@ type Screen =
   | { kind: 'session'; reading: Reading }
   | { kind: 'summary'; reading: Reading; shared?: boolean }
   | { kind: 'history' }
+  | { kind: 'lexicon' }
 
 export default function App() {
   const [settings, setSettings] = useState(getSettings)
@@ -29,6 +33,32 @@ export default function App() {
   const pending = useRef<Reading | null>(null)
   const [left, setLeft] = useState(readingsLeftToday)
 
+  // dźwięk i głos zgodnie z ustawieniami; przeglądarka pozwala grać dopiero po pierwszym geście
+  useEffect(() => {
+    configureAudio({ effects: settings.effects, ambient: settings.ambient, volume: settings.volume })
+    setVoiceOptions(settings.voiceName, settings.voiceRate)
+  }, [settings])
+  useEffect(() => {
+    const wake = () => {
+      unlockAudio()
+      removeEventListener('pointerdown', wake)
+      removeEventListener('keydown', wake)
+    }
+    addEventListener('pointerdown', wake)
+    addEventListener('keydown', wake)
+    return () => {
+      removeEventListener('pointerdown', wake)
+      removeEventListener('keydown', wake)
+    }
+  }, [])
+
+  const update = (patch: Partial<SettingsT>) => {
+    const s = { ...settings, ...patch }
+    setSettings(s)
+    saveSettings(s)
+  }
+  const soundOn = settings.ambient || settings.effects
+
   const goHome = () => {
     stopSpeaking()
     if (location.hash) history.replaceState(null, '', location.pathname + location.search)
@@ -37,11 +67,7 @@ export default function App() {
   }
 
   async function start(choice: SetupChoice) {
-    if (choice.name !== settings.name) {
-      const s = { ...settings, name: choice.name }
-      setSettings(s)
-      saveSettings(s)
-    }
+    if (choice.name !== settings.name) update({ name: choice.name })
     pending.current = null
     setScreen({ kind: 'shuffle', ready: false })
     // karty losujemy od razu, żeby AI pisało w trakcie tasowania
@@ -61,37 +87,58 @@ export default function App() {
   const toSummary = useCallback((reading: Reading) => setScreen({ kind: 'summary', reading }), [])
 
   const focus: SceneFocus =
-    screen.kind === 'shuffle' || screen.kind === 'session' ? 'table' : screen.kind === 'summary' ? 'away' : 'welcome'
+    screen.kind === 'shuffle' || screen.kind === 'session' ? 'table' : screen.kind === 'summary' || screen.kind === 'lexicon' ? 'away' : 'welcome'
 
   return (
     <div className="app">
       <header className="topbar">
         <button className="brand" onClick={goHome} aria-label="Strona główna">
-          <span className="brand-star">✦</span> Tajemnice Magii
+          <span className="brand-star">✦</span> <span className="brand-text">Tajemnice Magii</span>
         </button>
         <nav>
           <button
-            className="icon-btn"
+            className={`icon-btn ${settings.voice ? '' : 'is-off'}`}
             onClick={() => {
-              const s = { ...settings, voice: !settings.voice }
-              if (!s.voice) stopSpeaking()
-              setSettings(s)
-              saveSettings(s)
+              if (settings.voice) stopSpeaking()
+              update({ voice: !settings.voice })
             }}
             aria-pressed={settings.voice}
-            title={settings.voice ? 'Wyłącz głos' : 'Włącz głos'}
+            title={settings.voice ? 'Wyłącz głos Ayleny' : 'Włącz głos Ayleny'}
+            aria-label="Głos Ayleny"
           >
-            {settings.voice ? '🔊' : '🔇'}
+            <Icon name="voice" />
           </button>
-          <button className="icon-btn" onClick={() => { stopSpeaking(); setScreen({ kind: 'history' }) }} title="Księga wróżb">📜</button>
-          <button className="icon-btn" onClick={() => setShowSettings(true)} title="Ustawienia">⚙</button>
+          <button
+            className={`icon-btn ${soundOn ? '' : 'is-off'}`}
+            onClick={() => (soundOn ? update({ ambient: false, effects: false }) : update({ ambient: true, effects: true }))}
+            aria-pressed={soundOn}
+            title={soundOn ? 'Wycisz muzykę i efekty' : 'Włącz muzykę i efekty'}
+            aria-label="Muzyka i efekty"
+          >
+            <Icon name="music" />
+          </button>
+          <button className="icon-btn" onClick={() => { stopSpeaking(); setScreen({ kind: 'lexicon' }) }} title="Księga kart" aria-label="Księga kart">
+            <Icon name="cards" />
+          </button>
+          <button className="icon-btn" onClick={() => { stopSpeaking(); setScreen({ kind: 'history' }) }} title="Księga wróżb" aria-label="Księga wróżb">
+            <Icon name="book" />
+          </button>
+          <button className="icon-btn" onClick={() => setShowSettings(true)} title="Ustawienia" aria-label="Ustawienia">
+            <Icon name="gear" />
+          </button>
         </nav>
       </header>
 
       <Scene focus={focus} voice={settings.voice}>
-      <main>
+      <main key={screen.kind} className="screen-in">
         {screen.kind === 'setup' && (
-          <Setup left={left} defaultName={settings.name} onStart={start} onHistory={() => setScreen({ kind: 'history' })} />
+          <Setup
+            left={left}
+            defaultName={settings.name}
+            onStart={start}
+            onHistory={() => setScreen({ kind: 'history' })}
+            onLexicon={() => setScreen({ kind: 'lexicon' })}
+          />
         )}
         {screen.kind === 'shuffle' && <Shuffle ready={screen.ready} voice={settings.voice} onDone={toSession} />}
         {screen.kind === 'session' && (
@@ -107,13 +154,16 @@ export default function App() {
           />
         )}
         {screen.kind === 'history' && (
-          <History items={getHistory()} onOpen={(r) => setScreen({ kind: 'summary', reading: r, shared: true })} onBack={goHome} />
+          <History onOpen={(r) => setScreen({ kind: 'summary', reading: r, shared: true })} onBack={goHome} />
         )}
+        {screen.kind === 'lexicon' && <Lexicon onBack={goHome} />}
       </main>
       </Scene>
 
       <footer className="footer">
         Tajemnice Magii · wróżby mają charakter rozrywkowy · karty: talia Rider–Waite–Smith (1909, domena publiczna)
+        <br />
+        Skróty w trakcie wróżby: spacja wstrzymuje, strzałka w prawo przechodzi dalej.
       </footer>
 
       {showSettings && (

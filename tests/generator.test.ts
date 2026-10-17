@@ -53,3 +53,57 @@ describe('generator', () => {
     }
   })
 })
+
+describe('rozkłady i sfery', () => {
+  it('każda karta ma znaczenia we wszystkich trzech sferach', async () => {
+    const { CARDS } = await import('../src/data/cards')
+    for (const k of CARDS) {
+      for (const s of ['love', 'money', 'life'] as const) {
+        expect(k[s], `${k.id} ${s}`).toHaveLength(2)
+        k[s].forEach((t) => expect(t.length).toBeGreaterThan(10))
+      }
+    }
+  })
+
+  it('każdy rozkład i sfera dają kompletną wróżbę', async () => {
+    const { SPREADS, SPHERES } = await import('../src/data/spreads')
+    const { generateReading } = await import('../src/engine/generator')
+    const { drawCards } = await import('../src/engine/reading')
+    for (const spread of Object.values(SPREADS)) {
+      expect(spread.coords === undefined || spread.coords.length === spread.positions.length).toBe(true)
+      spread.adviceFrom.forEach((i) => expect(i).toBeLessThan(spread.positions.length))
+      for (const sphere of Object.keys(SPHERES) as (keyof typeof SPHERES)[]) {
+        const cards = drawCards(spread.id)
+        expect(cards).toHaveLength(spread.positions.length)
+        const g = generateReading(cards, spread.positions, sphere, spread.id, '')
+        expect(g.texts).toHaveLength(cards.length)
+        g.texts.forEach((t) => expect(t).toContain(spread.positions[g.texts.indexOf(t)].name))
+        expect(g.summary.length).toBeGreaterThan(30)
+        expect(g.summary).not.toMatch(/undefined/)
+        expect(g.advice).not.toMatch(/undefined/)
+        expect(g.greeting).toMatch(/(nów|Księżyc|kwadra|pełnia)/)
+      }
+    }
+  })
+
+  it('Tak czy nie: odpowiedź wynika z karty i otwiera podsumowanie', async () => {
+    const { CARDS } = await import('../src/data/cards')
+    const { SPREADS } = await import('../src/data/spreads')
+    const { generateReading, verdictOf } = await import('../src/engine/generator')
+    for (const card of [CARDS.find((k) => k.tone === 1)!, CARDS.find((k) => k.tone === -1)!, CARDS.find((k) => k.tone === 0)!]) {
+      const g = generateReading([card], SPREADS.yesno.positions, 'love', 'yesno', '')
+      expect(g.verdict).toBe(verdictOf(card))
+      const word = { tak: /tak/i, nie: /nie/i, moze: /(może|ani)/i }[g.verdict!]
+      expect(g.summary.split('.')[0]).toMatch(word)
+    }
+  })
+})
+
+describe('Księżyc', () => {
+  it('rozpoznaje znane pełnie i nowie', async () => {
+    const { moonPhase } = await import('../src/engine/moon')
+    expect(moonPhase(new Date('2024-04-23T23:49:00Z')).name).toBe('pełnia')
+    expect(moonPhase(new Date('2024-04-08T18:21:00Z')).name).toBe('nów')
+    expect(moonPhase(new Date('2025-03-14T06:55:00Z')).name).toBe('pełnia')
+  })
+})

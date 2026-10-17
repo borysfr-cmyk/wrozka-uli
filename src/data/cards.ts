@@ -1,5 +1,7 @@
 // Pełna talia 78 kart Rider–Waite–Smith z polskimi znaczeniami
-// dla dwóch sfer: miłości (love) i finansów / biznesu (money).
+// dla sfer miłości (love) i finansów / biznesu (money); drogę życia (life) dopisuje cards-life.ts.
+
+import { LIFE } from './cards-life'
 
 export type Suit = 'major' | 'kielichy' | 'bulawy' | 'miecze' | 'denary'
 
@@ -13,6 +15,8 @@ export interface Card {
   keywords: string[]
   love: [string, string]
   money: [string, string]
+  /** droga życia: rozwój, codzienność, decyzje (zob. cards-life.ts) */
+  life: [string, string]
   advice: string
 }
 
@@ -27,7 +31,7 @@ function c(
   money: [string, string],
   advice: string,
 ): Card {
-  return { id, name, suit, image: `karty/${image}.webp`, tone, keywords: keywords.split(', '), love, money, advice }
+  return { id, name, suit, image: `karty/${image}.webp`, tone, keywords: keywords.split(', '), love, money, life: LIFE[id], advice }
 }
 
 export const SUIT_NAMES: Record<Suit, string> = {

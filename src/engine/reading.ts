@@ -1,6 +1,7 @@
 import { CARDS, CARD_BY_ID, type Card } from '../data/cards'
 import { SPREADS, type Sphere, type SpreadId } from '../data/spreads'
-import { generateReading, type Generated } from './generator'
+import { generateReading, verdictOf, type Generated } from './generator'
+import { moonPhase } from './moon'
 import { generateWithGemini } from './ai'
 import { shuffle, uid, hash } from './random'
 import { getHashes, saveHashes, getSettings } from './storage'
@@ -63,6 +64,8 @@ export async function createReading(opts: {
     message: gen.message,
     talisman: gen.talisman,
     source,
+    verdict: spread === 'yesno' ? verdictOf(cards[0]) : undefined,
+    moon: moonPhase().name,
   }
   return { reading, aiError }
 }

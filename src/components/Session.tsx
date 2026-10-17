@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import type { Reading } from '../engine/types'
 import { cardOf } from '../engine/reading'
@@ -6,6 +6,11 @@ import { SPREADS } from '../data/spreads'
 import { speak, stopSpeaking } from '../engine/speech'
 import SpreadLayout from './SpreadLayout'
 import { useScene } from './Scene'
+import CardModal from './CardModal'
+import { sfxDeal, sfxFinale, sfxFlip } from '../engine/audio'
+import { sparkleAt } from '../engine/sparkle'
+
+export const VERDICT_LABEL = { tak: 'Tak', nie: 'Nie', moze: 'Być może' } as const
 
 // Tempo seansu: przy głosie czekamy na koniec czytania, bez głosu liczymy czas lektury.
 function readingTime(text: string) {
@@ -19,18 +24,22 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 export default function Session({ reading, voice, onFinish }: { reading: Reading; voice: boolean; onFinish: () => void }) {
   const scene = useScene()
   const cards = reading.cards.map((k) => cardOf(k.cardId))
-  const positions = SPREADS[reading.spread].positions
+  const def = SPREADS[reading.spread]
+  const positions = def.positions
   const [dealt, setDealt] = useState<boolean[]>(() => cards.map(() => false))
   const [revealed, setRevealed] = useState<boolean[]>(() => cards.map(() => false))
   const [active, setActive] = useState(-1)
   const [text, setText] = useState('')
   const [paused, setPaused] = useState(false)
+  const [verdict, setVerdict] = useState(false)
+  const [zoom, setZoom] = useState<number | null>(null)
 
   const skipRef = useRef<() => void>(() => {})
   const pausedRef = useRef(false)
   const voiceRef = useRef(voice)
   voiceRef.current = voice
-  pausedRef.current = paused
+  // okno z opisem karty wstrzymuje seans
+  pausedRef.current = paused || zoom !== null
 
   useEffect(() => {
     let cancelled = false
@@ -73,6 +82,7 @@ export default function Session({ reading, voice, onFinish }: { reading: Reading
         slot.style.setProperty('--fy', `${(hand.y - (r.top + r.height / 2)) / TILT_COS}px`)
       }
       scene.setDealing(true)
+      sfxDeal()
       setDealt((d) => d.map((v, j) => (j === i ? true : v)))
       await sleep(260)
       scene.setDealing(false)
@@ -95,13 +105,22 @@ export default function Session({ reading, voice, onFinish }: { reading: Reading
         setActive(i)
         setRevealed((r) => r.map((v, j) => (j === i ? true : v)))
         setText(reading.cards[i].text)
+        sfxFlip(cards[i].tone >= 0)
+        setTimeout(() => sparkleAt(document.querySelector(`[data-slot="${i}"] .tcard`)), 450)
         await sleep(900) // animacja odwracania
+        if (reading.verdict) setVerdict(true)
         if (cancelled) return
         await say(reading.cards[i].text)
       }
       if (cancelled) return
       setActive(-1)
-      const end = 'Wszystkie karty przemówiły. Zobaczmy, co razem mówią.'
+      sfxFinale()
+      const end =
+        cards.length === 1
+          ? reading.verdict
+            ? `Odpowiedź brzmi: ${VERDICT_LABEL[reading.verdict].toLowerCase()}. Zobaczmy, co jeszcze mówi karta.`
+            : 'Karta przemówiła. Zobaczmy, co dla Ciebie znaczy.'
+          : 'Wszystkie karty przemówiły. Zobaczmy, co razem mówią.'
       scene.say(end)
       setText('')
       await say(end, 2500)
@@ -119,14 +138,40 @@ export default function Session({ reading, voice, onFinish }: { reading: Reading
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reading.id])
 
+  // klawiatura: spacja wstrzymuje, strzałka w prawo lub Enter przechodzi dalej
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (zoom !== null || (e.target as HTMLElement)?.closest?.('input, textarea, select')) return
+      if (e.key === ' ') {
+        e.preventDefault()
+        setPaused((p) => !p)
+      } else if (e.key === 'ArrowRight' || e.key === 'Enter') {
+        if ((e.target as HTMLElement)?.tagName === 'BUTTON' && e.key === 'Enter') return
+        skipRef.current()
+      }
+    }
+    addEventListener('keydown', key)
+    return () => removeEventListener('keydown', key)
+  }, [zoom])
+
   const current = active >= 0 ? cards[active] : null
 
   return (
     <section className="session">
       {(() => {
         const layout = (
-          <div className={`table-cards table-${reading.spread}`}>
-            <SpreadLayout spread={reading.spread} cards={cards} revealed={revealed} dealt={dealt} active={active} />
+          <div
+            className={`table-cards table-${reading.spread}`}
+            style={{ ['--k' as string]: def.scale[0], ['--km' as string]: def.scale[1] } as CSSProperties}
+          >
+            <SpreadLayout
+              spread={reading.spread}
+              cards={cards}
+              revealed={revealed}
+              dealt={dealt}
+              active={active}
+              onSelect={(i) => setZoom(i)}
+            />
           </div>
         )
         return scene.tableSlot ? createPortal(layout, scene.tableSlot) : layout
@@ -142,10 +187,16 @@ export default function Session({ reading, voice, onFinish }: { reading: Reading
             </div>
           </div>
         )}
+        {verdict && reading.verdict && (
+          <p className={`verdict verdict-${reading.verdict}`} aria-live="polite">
+            <span className="verdict-label">Odpowiedź kart</span>
+            {VERDICT_LABEL[reading.verdict]}
+          </p>
+        )}
         {text && <p className="session-text" aria-live="polite">{text}</p>}
         <div className="session-controls">
-          <button className="btn" onClick={() => setPaused((p) => !p)}>{paused ? 'Wznów' : 'Pauza'}</button>
-          <button className="btn" onClick={() => skipRef.current()}>Dalej</button>
+          <button className="btn" onClick={() => setPaused((p) => !p)} title="Spacja">{paused ? 'Wznów' : 'Pauza'}</button>
+          <button className="btn" onClick={() => skipRef.current()} title="Strzałka w prawo">Dalej</button>
           <button
             className="btn btn-ghost"
             onClick={() => {
@@ -159,7 +210,17 @@ export default function Session({ reading, voice, onFinish }: { reading: Reading
         <div className="progress" aria-hidden="true">
           <span style={{ width: `${(revealed.filter(Boolean).length / cards.length) * 100}%` }} />
         </div>
+        <p className="session-tip small">Dotknij odkrytej karty na stole, by poznać jej pełne znaczenie.</p>
       </aside>
+
+      {zoom !== null && (
+        <CardModal
+          card={cards[zoom]}
+          sphere={reading.sphere}
+          context={{ position: `${zoom + 1}. ${positions[zoom].name}`, text: reading.cards[zoom].text }}
+          onClose={() => setZoom(null)}
+        />
+      )}
     </section>
   )
 }
