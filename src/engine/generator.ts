@@ -225,7 +225,7 @@ const VERDICT_LINES: Record<Verdict, string[]> = {
     'Odpowiedź kart brzmi: być może. Wiele zależy od Twojego następnego kroku.',
     'Karty nie mówią ani „tak”, ani „nie”. Sprawa jest jeszcze otwarta.',
     'Może. Los zostawia Ci tu wolną rękę.',
-    'Odpowiedź jest niejednoznaczna: to Twoja decyzja przechyli szalę.',
+    'Odpowiedź brzmi: może. To Twoja decyzja przechyli szalę.',
   ],
 }
 
